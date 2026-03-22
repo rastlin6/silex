@@ -528,33 +528,46 @@ const canvas = document.getElementById('waves');
 const ctx = canvas.getContext('2d');
 let time = 0;
 
+// Rendu uniquement quand visible
+const wavesObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => { wavesVisible = e.isIntersecting; });
+});
+wavesObserver.observe(canvas);
+let wavesVisible = false;
+
 function draw() {
+    if (!wavesVisible) { requestAnimationFrame(draw); return; }
+
     const w = canvas.width;
     const h = canvas.height;
+    const imgData = ctx.createImageData(w, h);
+    const data = imgData.data;
 
-    ctx.fillStyle = '#0d0d0f';
-    ctx.fillRect(0, 0, w, h);
-
-    for (let x = 0; x < w; x += 3) {
-        for (let y = 0; y < h; y += 3) {
+    for (let x = 0; x < w; x += 4) {
+        for (let y = 0; y < h; y += 4) {
             const nx = x / w;
             const ny = y / h;
 
             const v1 = Math.sin(nx * 10 + ny * 5 + time * 0.3);
             const v2 = Math.cos(ny * 8 - nx * 3 + time * 0.2);
-            const v3 = Math.sin(Math.sqrt(Math.pow(nx - 0.5, 2) + Math.pow(ny - 0.5, 2)) * 15 - time * 0.4);
+            const v3 = Math.sin(Math.sqrt((nx-0.5)*(nx-0.5) + (ny-0.5)*(ny-0.5)) * 15 - time * 0.4);
             const v = (v1 + v2 + v3) / 3;
 
-            const brightness = Math.floor((v + 1) * 0.5 * 255);
-            const r = Math.floor(brightness * 0.91);
-            const g = Math.floor(brightness * 0.63);
-            const b = Math.floor(brightness * 0.21);
+            const brightness = (v + 1) * 0.5 * 255;
+            const r = brightness * 0.91;
+            const g = brightness * 0.63;
+            const b = brightness * 0.21;
 
-            ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-            ctx.fillRect(x, y, 3, 3);
+            for (let dx = 0; dx < 4 && x+dx < w; dx++) {
+                for (let dy = 0; dy < 4 && y+dy < h; dy++) {
+                    const idx = ((y+dy) * w + (x+dx)) * 4;
+                    data[idx] = r; data[idx+1] = g; data[idx+2] = b; data[idx+3] = 255;
+                }
+            }
         }
     }
 
+    ctx.putImageData(imgData, 0, 0);
     time += 0.02;
     requestAnimationFrame(draw);
 }
@@ -659,7 +672,14 @@ document.querySelectorAll('canvas').forEach(c => {
 
     let t = 0;
 
+    let flowVisible = false;
+    const flowObserver = new IntersectionObserver((entries) => {
+        entries.forEach(e => { flowVisible = e.isIntersecting; });
+    });
+    flowObserver.observe(ff);
+
     function drawFlow() {
+        if (!flowVisible) { requestAnimationFrame(drawFlow); return; }
         // Fade progressif pour les traînées
         ctx2.fillStyle = 'rgba(13, 13, 15, 0.03)';
         ctx2.fillRect(0, 0, W, H);
@@ -712,6 +732,7 @@ new p5(function(p) {
         cnv.parent('p5-container');
         cnv.style('border-radius', '8px');
         cnv.style('border', '1px solid #2a2a30');
+        p.frameRate(30);
         p.colorMode(p.HSB, 360, 100, 100, 100);
     };
 

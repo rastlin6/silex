@@ -716,8 +716,9 @@ document.querySelectorAll('canvas').forEach(c => {
         var i = Math.floor((x * 7 + y * 13 + d * 3) % SOURCE.length);
         var c = SOURCE[i];
         var h = 25 + d * 8;
-        var a = 0.15 + d * 0.08;
-        ctx3.fillStyle = 'hsla(' + h + ',70%,50%,' + a + ')';
+        var a = 0.4 + d * 0.12;
+        var l = 45 + d * 6;
+        ctx3.fillStyle = 'hsla(' + h + ',80%,' + l + '%,' + a + ')';
         ctx3.font = s + 'px monospace';
         ctx3.fillText(c, x, y);
         var half = s * 0.55;
@@ -730,7 +731,7 @@ document.querySelectorAll('canvas').forEach(c => {
     miroir(10, 20, 48, 7);
 
     // Afficher le code source en filigrane en bas
-    ctx3.fillStyle = 'rgba(232, 160, 53, 0.12)';
+    ctx3.fillStyle = 'rgba(232, 160, 53, 0.25)';
     ctx3.font = '9px monospace';
     const lines = SOURCE.match(/.{1,90}/g) || [];
     lines.forEach((line, i) => {

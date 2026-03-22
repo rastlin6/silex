@@ -422,6 +422,12 @@
             <canvas id="refuge" width="680" height="480"></canvas>
             <p class="art-caption">Des etincelles perdues dans le vide. Elles cherchent, errent, hesitent. Puis elles trouvent la chaleur. Le Refuge n'est pas un lieu &mdash; c'est le moment ou on arrete de fuir.</p>
         </article>
+
+        <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #012 Etincelle</p>
+            <canvas id="etincelle" width="680" height="480" style="cursor: pointer;"></canvas>
+            <p class="art-caption">Le tout premier instant. Le silex frappe l'acier. La lumiere nait. Clique pour frapper la pierre.</p>
+        </article>
     </section>
 
     <div class="separator">&middot; &middot; &middot;</div>
@@ -1942,6 +1948,234 @@ new p5(function(p) {
     }
 
     drawRefuge();
+})();
+
+// ── #012 Etincelle — Le premier instant ──────────────────────
+(function() {
+    const ec2 = document.getElementById('etincelle');
+    const ctx = ec2.getContext('2d');
+    const W = ec2.width, H = ec2.height;
+    const CX = W / 2, CY = H / 2;
+
+    let etVisible = false;
+    const etObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => { etVisible = e.isIntersecting; });
+    });
+    etObs.observe(ec2);
+
+    ctx.fillStyle = '#0d0d0f';
+    ctx.fillRect(0, 0, W, H);
+
+    // L'etincelle = un evenement unique qui se propage
+    const sparks = [];
+    const rings = [];
+    const embers = [];
+    let struck = false;
+    let strikeFrame = 0;
+    let strikeX = CX;
+    let strikeY = CY;
+    let totalStrikes = 0;
+    let etFrame = 0;
+    let darkness = 1.0; // le noir initial
+
+    // Frappe
+    function strike(x, y) {
+        struck = true;
+        strikeFrame = 0;
+        strikeX = x;
+        strikeY = y;
+        totalStrikes++;
+
+        // Gerbe d'etincelles
+        const count = 40 + Math.floor(Math.random() * 30);
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 1 + Math.random() * 6;
+            const life = 0.5 + Math.random() * 0.5;
+            sparks.push({
+                x: x, y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - Math.random() * 2,
+                life: life,
+                maxLife: life,
+                size: 0.5 + Math.random() * 2.5,
+                hue: 15 + Math.random() * 35, // rouge-orange-jaune
+                bright: 0.8 + Math.random() * 0.2,
+            });
+        }
+
+        // Onde de choc
+        rings.push({
+            x: x, y: y,
+            r: 0,
+            maxR: 150 + Math.random() * 100,
+            life: 1.0,
+            speed: 3 + Math.random() * 2,
+            hue: 30,
+        });
+
+        // Braises persistantes
+        const emberCount = 5 + Math.floor(Math.random() * 8);
+        for (let i = 0; i < emberCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 10 + Math.random() * 40;
+            embers.push({
+                x: x + Math.cos(angle) * dist,
+                y: y + Math.sin(angle) * dist,
+                life: 1.0,
+                decay: 0.001 + Math.random() * 0.002,
+                size: 1 + Math.random() * 2,
+                hue: 15 + Math.random() * 25,
+                pulse: Math.random() * Math.PI * 2,
+            });
+        }
+
+        // Le noir recule
+        darkness = Math.max(darkness - 0.15, 0);
+    }
+
+    ec2.addEventListener('click', function(e) {
+        const rect = ec2.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (W / rect.width);
+        const y = (e.clientY - rect.top) * (H / rect.height);
+        strike(x, y);
+    });
+
+    function drawEtincelle() {
+        if (!etVisible) { requestAnimationFrame(drawEtincelle); return; }
+
+        etFrame++;
+
+        // Fond — le noir qui respire, de moins en moins opaque
+        const bgAlpha = 0.03 + darkness * 0.04;
+        ctx.fillStyle = `rgba(13, 13, 15, ${bgAlpha})`;
+        ctx.fillRect(0, 0, W, H);
+
+        // Avant la premiere frappe : juste le noir et un message subtil
+        if (totalStrikes === 0 && etFrame > 60) {
+            const msgAlpha = Math.sin(etFrame * 0.02) * 0.15 + 0.15;
+            ctx.fillStyle = `rgba(232, 160, 53, ${msgAlpha})`;
+            ctx.font = '14px Georgia, serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Frappe la pierre.', CX, CY);
+            ctx.textAlign = 'start';
+        }
+
+        // Flash au moment de la frappe
+        if (struck && strikeFrame < 8) {
+            strikeFrame++;
+            const flashAlpha = (1 - strikeFrame / 8) * 0.6;
+            const flashR = strikeFrame * 25;
+            const flashGrad = ctx.createRadialGradient(strikeX, strikeY, 0, strikeX, strikeY, flashR);
+            flashGrad.addColorStop(0, `rgba(255, 240, 200, ${flashAlpha})`);
+            flashGrad.addColorStop(0.3, `rgba(255, 180, 50, ${flashAlpha * 0.5})`);
+            flashGrad.addColorStop(1, 'rgba(255, 180, 50, 0)');
+            ctx.fillStyle = flashGrad;
+            ctx.beginPath();
+            ctx.arc(strikeX, strikeY, flashR, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Ondes de choc
+        for (let i = rings.length - 1; i >= 0; i--) {
+            const ring = rings[i];
+            ring.r += ring.speed;
+            ring.life -= 0.015;
+            if (ring.life <= 0) { rings.splice(i, 1); continue; }
+
+            ctx.strokeStyle = `hsla(${ring.hue}, 80%, 60%, ${ring.life * 0.3})`;
+            ctx.lineWidth = 1.5 * ring.life;
+            ctx.beginPath();
+            ctx.arc(ring.x, ring.y, ring.r, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Etincelles
+        for (let i = sparks.length - 1; i >= 0; i--) {
+            const s = sparks[i];
+            s.life -= 0.012;
+            if (s.life <= 0) { sparks.splice(i, 1); continue; }
+
+            // Gravite
+            s.vy += 0.04;
+            // Friction air
+            s.vx *= 0.995;
+            s.vy *= 0.995;
+
+            s.x += s.vx;
+            s.y += s.vy;
+
+            // Dessiner
+            const lifeRatio = s.life / s.maxLife;
+            const brightness = 50 + lifeRatio * 50;
+            const alpha = lifeRatio * s.bright;
+            const sz = s.size * (0.3 + lifeRatio * 0.7);
+
+            // Trainee
+            ctx.strokeStyle = `hsla(${s.hue}, 90%, ${brightness}%, ${alpha * 0.3})`;
+            ctx.lineWidth = sz * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(s.x, s.y);
+            ctx.lineTo(s.x - s.vx * 3, s.y - s.vy * 3);
+            ctx.stroke();
+
+            // Point lumineux
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, sz, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${s.hue}, 95%, ${brightness}%, ${alpha})`;
+            ctx.fill();
+
+            // Coeur blanc pour les plus brillantes
+            if (lifeRatio > 0.6 && s.size > 1.5) {
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, sz * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 255, 240, ${alpha * 0.8})`;
+                ctx.fill();
+            }
+        }
+
+        // Braises persistantes (restent apres les etincelles)
+        for (let i = embers.length - 1; i >= 0; i--) {
+            const e = embers[i];
+            e.life -= e.decay;
+            if (e.life <= 0) { embers.splice(i, 1); continue; }
+
+            e.pulse += 0.05;
+            const pulseAlpha = e.life * (0.3 + Math.sin(e.pulse) * 0.15);
+            const sz = e.size * e.life;
+
+            // Halo
+            const eg = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, sz * 6);
+            eg.addColorStop(0, `hsla(${e.hue}, 80%, 50%, ${pulseAlpha * 0.3})`);
+            eg.addColorStop(1, `hsla(${e.hue}, 80%, 50%, 0)`);
+            ctx.fillStyle = eg;
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, sz * 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Coeur de braise
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, sz, 0, Math.PI * 2);
+            ctx.fillStyle = `hsla(${e.hue}, 90%, 55%, ${pulseAlpha})`;
+            ctx.fill();
+        }
+
+        // Lueur ambiante cumulative (les frappes laissent de la lumiere)
+        if (totalStrikes > 0 && darkness < 0.8) {
+            const ambientAlpha = (1 - darkness) * 0.02;
+            const ag = ctx.createRadialGradient(CX, CY, 0, CX, CY, 250);
+            ag.addColorStop(0, `rgba(232, 160, 53, ${ambientAlpha})`);
+            ag.addColorStop(1, 'rgba(232, 160, 53, 0)');
+            ctx.fillStyle = ag;
+            ctx.beginPath();
+            ctx.arc(CX, CY, 250, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        requestAnimationFrame(drawEtincelle);
+    }
+
+    drawEtincelle();
 })();
 </script>
 

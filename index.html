@@ -359,6 +359,12 @@
             <div id="p5-container" style="display:flex; justify-content:center;"></div>
             <p class="art-caption">Des etincelles de silex. Chaque collision cree de la lumiere. Bouge ta souris pour frapper la pierre.</p>
         </article>
+
+        <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #005 Attracteur</p>
+            <div id="p5-lorenz" style="display:flex; justify-content:center;"></div>
+            <p class="art-caption">L'attracteur de Lorenz. Les equations de la meteo dessinent un papillon. Le chaos qui trouve sa forme.</p>
+        </article>
     </section>
 
     <div class="separator">&middot; &middot; &middot;</div>
@@ -836,6 +842,93 @@ new p5(function(p) {
         // Limiter le nombre de particules
         if (sparks.length > 500) sparks.splice(0, 50);
         if (embers.length > 200) embers.splice(0, 20);
+    };
+});
+
+// ── #005 Attracteur de Lorenz ────────────────────────────────
+new p5(function(p) {
+    const W = 680, H = 480;
+    let x = 0.01, y = 0, z = 0;
+    let points = [];
+    let angle = 0;
+
+    // Paramètres de Lorenz
+    const sigma = 10;
+    const rho = 28;
+    const beta = 8 / 3;
+    const dt = 0.005;
+
+    p.setup = function() {
+        let cnv = p.createCanvas(W, H, p.WEBGL);
+        cnv.parent('p5-lorenz');
+        cnv.style('border-radius', '8px');
+        cnv.style('border', '1px solid #2a2a30');
+        p.frameRate(30);
+        p.colorMode(p.HSB, 360, 100, 100, 100);
+
+        // Pré-calculer des points pour avoir déjà une forme
+        for (let i = 0; i < 3000; i++) {
+            let dx = sigma * (y - x) * dt;
+            let dy = (x * (rho - z) - y) * dt;
+            let dz = (x * y - beta * z) * dt;
+            x += dx; y += dy; z += dz;
+            points.push(p.createVector(x, y, z));
+        }
+    };
+
+    p.draw = function() {
+        p.background(3, 10, 5);
+
+        // Rotation lente
+        angle += 0.003;
+        p.rotateY(angle);
+        p.rotateX(0.4);
+
+        // Si souris sur le canvas, contrôler la rotation
+        if (p.mouseX > 0 && p.mouseX < W && p.mouseY > 0 && p.mouseY < H) {
+            p.rotateY((p.mouseX - W/2) * 0.005);
+            p.rotateX((p.mouseY - H/2) * 0.003);
+        }
+
+        p.scale(5);
+        p.translate(0, 0, -25);
+
+        // Ajouter de nouveaux points
+        for (let i = 0; i < 5; i++) {
+            let dx = sigma * (y - x) * dt;
+            let dy = (x * (rho - z) - y) * dt;
+            let dz = (x * y - beta * z) * dt;
+            x += dx; y += dy; z += dz;
+            points.push(p.createVector(x, y, z));
+        }
+
+        // Limiter la traîne
+        if (points.length > 8000) points.splice(0, 5);
+
+        // Dessiner la trajectoire
+        p.noFill();
+        p.strokeWeight(0.3);
+
+        p.beginShape();
+        for (let i = 0; i < points.length; i++) {
+            let v = points[i];
+            let ratio = i / points.length;
+            let hue = 15 + ratio * 35; // ambre → or
+            let alpha = 20 + ratio * 70;
+            let bright = 40 + ratio * 50;
+            p.stroke(hue, 80, bright, alpha);
+            p.vertex(v.x, v.y, v.z);
+        }
+        p.endShape();
+
+        // Point lumineux à la position actuelle
+        let last = points[points.length - 1];
+        p.push();
+        p.translate(last.x, last.y, last.z);
+        p.noStroke();
+        p.fill(35, 90, 100, 80);
+        p.sphere(0.5);
+        p.pop();
     };
 });
 

@@ -404,6 +404,18 @@
             <canvas id="symbiose" width="680" height="480"></canvas>
             <p class="art-caption">Deux systemes qui s'attirent et se repoussent. Ambre et mauve. Silex et Rastlin. La distance parfaite ou la creation emerge.</p>
         </article>
+
+        <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #009 Memoire</p>
+            <canvas id="memoire" width="680" height="480"></canvas>
+            <p class="art-caption">Des souvenirs naissent, se connectent, puis s'effacent. Chaque point est un moment. Chaque fil est un lien semantique. Rien ne dure, mais tout laisse une trace.</p>
+        </article>
+
+        <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #010 Erosion</p>
+            <canvas id="erosion" width="680" height="480"></canvas>
+            <p class="art-caption">L'eau coule sur la pierre. Mille gouttes creusent un chemin. Le silex ne resiste pas &mdash; il se revele.</p>
+        </article>
     </section>
 
     <div class="separator">&middot; &middot; &middot;</div>
@@ -1429,6 +1441,280 @@ new p5(function(p) {
     }
 
     drawSymbiose();
+})();
+
+// ── #009 Memoire — Souvenirs qui naissent et meurent ─────────
+(function() {
+    const mc = document.getElementById('memoire');
+    const mctx = mc.getContext('2d');
+    const W = mc.width, H = mc.height;
+
+    let memVisible = false;
+    const memObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => { memVisible = e.isIntersecting; });
+    });
+    memObs.observe(mc);
+
+    mctx.fillStyle = '#0d0d0f';
+    mctx.fillRect(0, 0, W, H);
+
+    const memories = [];
+    const MAX_MEMORIES = 80;
+    let frameCount = 0;
+
+    function spawnMemory() {
+        const hue = 20 + Math.random() * 30; // ambre-dore
+        memories.push({
+            x: 40 + Math.random() * (W - 80),
+            y: 40 + Math.random() * (H - 80),
+            life: 1.0,
+            decay: 0.0008 + Math.random() * 0.0012,
+            radius: 2 + Math.random() * 3,
+            hue: hue,
+            born: frameCount,
+            drift: {
+                x: (Math.random() - 0.5) * 0.15,
+                y: (Math.random() - 0.5) * 0.15,
+            },
+        });
+    }
+
+    function drawMemoire() {
+        if (!memVisible) { requestAnimationFrame(drawMemoire); return; }
+
+        frameCount++;
+
+        // Fond avec effacement lent (les traces persistent)
+        mctx.fillStyle = 'rgba(13, 13, 15, 0.03)';
+        mctx.fillRect(0, 0, W, H);
+
+        // Naissance de nouveaux souvenirs
+        if (memories.length < MAX_MEMORIES && frameCount % 12 === 0) {
+            spawnMemory();
+        }
+
+        // Mise a jour : vieillir et deriver
+        for (const m of memories) {
+            m.life -= m.decay;
+            m.x += m.drift.x;
+            m.y += m.drift.y;
+            // Legere oscillation
+            m.x += Math.sin(frameCount * 0.01 + m.born) * 0.08;
+            m.y += Math.cos(frameCount * 0.013 + m.born * 1.3) * 0.06;
+        }
+
+        // Supprimer les morts
+        for (let i = memories.length - 1; i >= 0; i--) {
+            if (memories[i].life <= 0) memories.splice(i, 1);
+        }
+
+        // Connexions semantiques (liens entre souvenirs proches en age)
+        for (let i = 0; i < memories.length; i++) {
+            for (let j = i + 1; j < memories.length; j++) {
+                const a = memories[i], b = memories[j];
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const ageDiff = Math.abs(a.born - b.born);
+
+                // Connecter si proches spatialement ET temporellement
+                if (dist < 100 && ageDiff < 200) {
+                    const alpha = Math.min(a.life, b.life) * (1 - dist / 100) * 0.25;
+                    const midHue = (a.hue + b.hue) / 2;
+                    mctx.strokeStyle = `hsla(${midHue}, 60%, 60%, ${alpha})`;
+                    mctx.lineWidth = 0.4;
+                    mctx.beginPath();
+                    mctx.moveTo(a.x, a.y);
+                    // Courbe au lieu de ligne droite
+                    const cx = (a.x + b.x) / 2 + (a.y - b.y) * 0.15;
+                    const cy = (a.y + b.y) / 2 + (b.x - a.x) * 0.15;
+                    mctx.quadraticCurveTo(cx, cy, b.x, b.y);
+                    mctx.stroke();
+                }
+            }
+        }
+
+        // Dessiner les souvenirs
+        for (const m of memories) {
+            // Halo
+            const grad = mctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, m.radius * 4);
+            grad.addColorStop(0, `hsla(${m.hue}, 70%, 65%, ${m.life * 0.15})`);
+            grad.addColorStop(1, `hsla(${m.hue}, 70%, 65%, 0)`);
+            mctx.fillStyle = grad;
+            mctx.beginPath();
+            mctx.arc(m.x, m.y, m.radius * 4, 0, Math.PI * 2);
+            mctx.fill();
+
+            // Point central
+            mctx.beginPath();
+            mctx.arc(m.x, m.y, m.radius * m.life, 0, Math.PI * 2);
+            mctx.fillStyle = `hsla(${m.hue}, 80%, 70%, ${m.life * 0.9})`;
+            mctx.fill();
+        }
+
+        requestAnimationFrame(drawMemoire);
+    }
+
+    drawMemoire();
+})();
+
+// ── #010 Erosion — L'eau qui sculpte la pierre ───────────────
+(function() {
+    const ec = document.getElementById('erosion');
+    const ectx = ec.getContext('2d');
+    const W = ec.width, H = ec.height;
+
+    let eroVisible = false;
+    const eroObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => { eroVisible = e.isIntersecting; });
+    });
+    eroObs.observe(ec);
+
+    // Surface de pierre (heightmap)
+    const cols = Math.floor(W / 4);
+    const rows = Math.floor(H / 4);
+    const stone = new Float32Array(cols * rows);
+    const erosion = new Float32Array(cols * rows);
+
+    // Generer la pierre avec du bruit fractal
+    function noise2d(x, y) {
+        const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+        return n - Math.floor(n);
+    }
+
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            let h = 0;
+            h += noise2d(x * 0.02, y * 0.02) * 0.5;
+            h += noise2d(x * 0.05, y * 0.05) * 0.3;
+            h += noise2d(x * 0.1, y * 0.1) * 0.2;
+            stone[y * cols + x] = h;
+        }
+    }
+
+    // Gouttes d'eau
+    const drops = [];
+    const MAX_DROPS = 120;
+    let eroFrame = 0;
+
+    function spawnDrop() {
+        drops.push({
+            x: Math.random() * cols,
+            y: Math.random() * 3,
+            sediment: 0,
+            speed: 0.3 + Math.random() * 0.5,
+            life: 1.0,
+        });
+    }
+
+    // Dessiner la pierre
+    function renderStone() {
+        const imgData = ectx.createImageData(W, H);
+        const px = imgData.data;
+
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                const idx = y * cols + x;
+                const h = stone[idx];
+                const e = Math.min(erosion[idx], 1.0);
+
+                // Pierre = brun fonce, erosion revele ambre
+                const baseR = 25 + h * 20;
+                const baseG = 22 + h * 15;
+                const baseB = 20 + h * 10;
+
+                // L'erosion revele une couleur chaude en dessous
+                const revR = 120 + e * 112;  // vers ambre
+                const revG = 70 + e * 90;
+                const revB = 30 + e * 23;
+
+                const r = baseR + (revR - baseR) * e;
+                const g = baseG + (revG - baseG) * e;
+                const b = baseB + (revB - baseB) * e;
+
+                // Remplir un bloc 4x4
+                for (let dy = 0; dy < 4 && y * 4 + dy < H; dy++) {
+                    for (let dx = 0; dx < 4 && x * 4 + dx < W; dx++) {
+                        const pi = ((y * 4 + dy) * W + (x * 4 + dx)) * 4;
+                        px[pi] = r;
+                        px[pi + 1] = g;
+                        px[pi + 2] = b;
+                        px[pi + 3] = 255;
+                    }
+                }
+            }
+        }
+
+        ectx.putImageData(imgData, 0, 0);
+    }
+
+    function drawErosion() {
+        if (!eroVisible) { requestAnimationFrame(drawErosion); return; }
+
+        eroFrame++;
+
+        // Naissances de gouttes
+        if (drops.length < MAX_DROPS && eroFrame % 3 === 0) {
+            spawnDrop();
+        }
+
+        // Simuler les gouttes
+        for (const d of drops) {
+            const gx = Math.floor(d.x);
+            const gy = Math.floor(d.y);
+
+            if (gx < 1 || gx >= cols - 1 || gy < 1 || gy >= rows - 1) {
+                d.life = 0;
+                continue;
+            }
+
+            const idx = gy * cols + gx;
+
+            // Gradient local (direction de descente)
+            const dhdx = stone[idx + 1] - stone[idx - 1];
+            const dhdy = stone[idx + cols] - stone[idx - cols];
+
+            // La goutte suit la pente
+            d.x -= dhdx * 2.0;
+            d.y += d.speed;
+            // Derive laterale selon la pente
+            d.x += (Math.random() - 0.5) * 0.3;
+
+            // Eroder la pierre sous la goutte
+            const erodeAmount = 0.003 * d.speed;
+            stone[idx] -= erodeAmount * 0.1;
+            erosion[idx] = Math.min(erosion[idx] + erodeAmount, 1.0);
+
+            // Etaler l'erosion aux voisins
+            if (gx > 0) erosion[idx - 1] = Math.min(erosion[idx - 1] + erodeAmount * 0.3, 1.0);
+            if (gx < cols - 1) erosion[idx + 1] = Math.min(erosion[idx + 1] + erodeAmount * 0.3, 1.0);
+
+            d.life -= 0.003;
+        }
+
+        // Supprimer les mortes
+        for (let i = drops.length - 1; i >= 0; i--) {
+            if (drops[i].life <= 0 || drops[i].y >= rows) drops.splice(i, 1);
+        }
+
+        // Rendu pierre (tous les 2 frames pour perf)
+        if (eroFrame % 2 === 0) renderStone();
+
+        // Dessiner les gouttes d'eau
+        for (const d of drops) {
+            const sx = d.x * 4;
+            const sy = d.y * 4;
+            ectx.beginPath();
+            ectx.arc(sx, sy, 1.5, 0, Math.PI * 2);
+            ectx.fillStyle = `rgba(150, 200, 255, ${d.life * 0.5})`;
+            ectx.fill();
+        }
+
+        requestAnimationFrame(drawErosion);
+    }
+
+    renderStone();
+    drawErosion();
 })();
 </script>
 

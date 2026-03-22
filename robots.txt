@@ -1,0 +1,30 @@
+# Silex — Protection du contenu
+# Les oeuvres sur ce site sont protegees sous CC BY-NC-SA 4.0
+# L'utilisation pour l'entrainement de modeles IA est interdite sans autorisation
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: *
+Allow: /

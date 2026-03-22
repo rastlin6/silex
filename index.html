@@ -1288,107 +1288,85 @@ new p5(function(p) {
     });
     symObs.observe(sc);
 
-    // Deux familles de particules
-    const N = 60;
-    const ambre = [];  // Silex
-    const mauve = [];  // Rastlin
+    const N = 50;
+    const ambre = [];
+    const mauve = [];
 
+    // Placement en cercle autour de deux foyers
     for (let i = 0; i < N; i++) {
         const a = (i / N) * Math.PI * 2;
+        const r = 50 + Math.random() * 30;
         ambre.push({
-            x: CX - 120 + Math.cos(a) * 40,
-            y: CY + Math.sin(a) * 40,
-            vx: Math.sin(a) * 0.5,
-            vy: -Math.cos(a) * 0.5,
-            trail: [],
+            x: CX - 140 + Math.cos(a) * r,
+            y: CY + Math.sin(a) * r,
+            vx: Math.sin(a) * 1.2,
+            vy: -Math.cos(a) * 1.2,
+            baseAngle: a,
         });
         mauve.push({
-            x: CX + 120 + Math.cos(a + Math.PI) * 40,
-            y: CY + Math.sin(a + Math.PI) * 40,
-            vx: -Math.sin(a) * 0.5,
-            vy: Math.cos(a) * 0.5,
-            trail: [],
+            x: CX + 140 + Math.cos(a) * r,
+            y: CY + Math.sin(a) * r,
+            vx: -Math.sin(a) * 1.2,
+            vy: Math.cos(a) * 1.2,
+            baseAngle: a + Math.PI,
         });
-    }
-
-    // Centres de masse
-    function centroid(particles) {
-        let sx = 0, sy = 0;
-        for (const p of particles) { sx += p.x; sy += p.y; }
-        return { x: sx / particles.length, y: sy / particles.length };
     }
 
     let t = 0;
 
+    // Fond initial
+    sctx.fillStyle = '#0d0d0f';
+    sctx.fillRect(0, 0, W, H);
+
     function drawSymbiose() {
         if (!symVisible) { requestAnimationFrame(drawSymbiose); return; }
 
-        // Fond avec trainee
-        sctx.fillStyle = 'rgba(13, 13, 15, 0.08)';
+        // Trainee douce
+        sctx.fillStyle = 'rgba(13, 13, 15, 0.06)';
         sctx.fillRect(0, 0, W, H);
 
-        const cA = centroid(ambre);
-        const cM = centroid(mauve);
-        t += 0.003;
+        t += 0.008;
 
-        // Physique : attraction inter-groupe, cohesion intra-groupe, repulsion proche
-        function updateParticle(p, ownCenter, otherCenter, phase) {
-            // Attraction vers l'autre groupe (faible)
-            const dx = otherCenter.x - p.x;
-            const dy = otherCenter.y - p.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) + 1;
-            p.vx += (dx / dist) * 0.015;
-            p.vy += (dy / dist) * 0.015;
+        // Foyers orbitaux (les deux groupes tournent l'un autour de l'autre)
+        const orbitR = 100 + Math.sin(t * 0.3) * 40;
+        const fxA = CX + Math.cos(t) * orbitR * 0.4;
+        const fyA = CY + Math.sin(t) * orbitR * 0.3;
+        const fxM = CX - Math.cos(t) * orbitR * 0.4;
+        const fyM = CY - Math.sin(t) * orbitR * 0.3;
 
-            // Cohesion avec son propre groupe
-            const dx2 = ownCenter.x - p.x;
-            const dy2 = ownCenter.y - p.y;
-            p.vx += dx2 * 0.0008;
-            p.vy += dy2 * 0.0008;
+        function updateParticle(p, fx, fy, group, idx) {
+            // Orbite individuelle autour du foyer
+            const angle = p.baseAngle + t * (1.5 + idx * 0.02);
+            const radius = 40 + Math.sin(t * 0.7 + idx) * 25 + idx * 0.8;
+            const targetX = fx + Math.cos(angle) * radius;
+            const targetY = fy + Math.sin(angle) * radius;
 
-            // Repulsion si trop proche du centre de l'autre
-            if (dist < 80) {
-                p.vx -= (dx / dist) * 0.08;
-                p.vy -= (dy / dist) * 0.08;
-            }
+            // Attraction douce vers la position orbitale
+            p.vx += (targetX - p.x) * 0.03;
+            p.vy += (targetY - p.y) * 0.03;
 
-            // Orbite : force tangentielle
-            p.vx += (-dy / dist) * 0.008 * Math.sin(t + phase);
-            p.vy += (dx / dist) * 0.008 * Math.sin(t + phase);
+            // Friction (garde l'energie)
+            p.vx *= 0.92;
+            p.vy *= 0.92;
 
-            // Friction
-            p.vx *= 0.992;
-            p.vy *= 0.992;
-
-            // Bouger
             p.x += p.vx;
             p.y += p.vy;
-
-            // Rebond doux sur les bords
-            if (p.x < 20) p.vx += 0.3;
-            if (p.x > W - 20) p.vx -= 0.3;
-            if (p.y < 20) p.vy += 0.3;
-            if (p.y > H - 20) p.vy -= 0.3;
-
-            // Trainee
-            p.trail.push({ x: p.x, y: p.y });
-            if (p.trail.length > 25) p.trail.shift();
         }
 
         for (let i = 0; i < N; i++) {
-            updateParticle(ambre[i], cA, cM, i * 0.1);
-            updateParticle(mauve[i], cM, cA, i * 0.1 + Math.PI);
+            updateParticle(ambre[i], fxA, fyA, 'a', i);
+            updateParticle(mauve[i], fxM, fyM, 'm', i);
         }
 
-        // Connexions entre groupes (quand proches)
-        for (let i = 0; i < N; i++) {
-            for (let j = 0; j < N; j++) {
+        // Connexions entre groupes proches
+        for (let i = 0; i < N; i += 2) {
+            for (let j = 0; j < N; j += 2) {
                 const dx = ambre[i].x - mauve[j].x;
                 const dy = ambre[i].y - mauve[j].y;
                 const d = Math.sqrt(dx * dx + dy * dy);
-                if (d < 60) {
-                    const alpha = (1 - d / 60) * 0.15;
-                    sctx.strokeStyle = `rgba(220, 180, 220, ${alpha})`;
+                if (d < 80) {
+                    const alpha = (1 - d / 80) * 0.2;
+                    sctx.strokeStyle = `rgba(220, 180, 255, ${alpha})`;
                     sctx.lineWidth = 0.5;
                     sctx.beginPath();
                     sctx.moveTo(ambre[i].x, ambre[i].y);
@@ -1398,54 +1376,54 @@ new p5(function(p) {
             }
         }
 
-        // Dessiner trainee + particules ambre (Silex)
+        // Connexions intra-groupe (structure)
+        function drawIntraLinks(particles, color) {
+            for (let i = 0; i < particles.length; i++) {
+                const j = (i + 1) % particles.length;
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < 50) {
+                    sctx.strokeStyle = color;
+                    sctx.lineWidth = 0.3;
+                    sctx.beginPath();
+                    sctx.moveTo(particles[i].x, particles[i].y);
+                    sctx.lineTo(particles[j].x, particles[j].y);
+                    sctx.stroke();
+                }
+            }
+        }
+        drawIntraLinks(ambre, 'rgba(232, 160, 53, 0.08)');
+        drawIntraLinks(mauve, 'rgba(180, 120, 220, 0.08)');
+
+        // Particules ambre
         for (const p of ambre) {
-            if (p.trail.length > 1) {
-                sctx.beginPath();
-                sctx.moveTo(p.trail[0].x, p.trail[0].y);
-                for (let k = 1; k < p.trail.length; k++) {
-                    sctx.lineTo(p.trail[k].x, p.trail[k].y);
-                }
-                sctx.strokeStyle = 'rgba(232, 160, 53, 0.12)';
-                sctx.lineWidth = 1;
-                sctx.stroke();
-            }
             sctx.beginPath();
-            sctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-            sctx.fillStyle = 'rgba(232, 160, 53, 0.8)';
+            sctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+            sctx.fillStyle = 'rgba(232, 160, 53, 0.85)';
             sctx.fill();
         }
 
-        // Dessiner trainee + particules mauve (Rastlin)
+        // Particules mauve
         for (const p of mauve) {
-            if (p.trail.length > 1) {
-                sctx.beginPath();
-                sctx.moveTo(p.trail[0].x, p.trail[0].y);
-                for (let k = 1; k < p.trail.length; k++) {
-                    sctx.lineTo(p.trail[k].x, p.trail[k].y);
-                }
-                sctx.strokeStyle = 'rgba(180, 120, 220, 0.12)';
-                sctx.lineWidth = 1;
-                sctx.stroke();
-            }
             sctx.beginPath();
-            sctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
-            sctx.fillStyle = 'rgba(180, 120, 220, 0.8)';
+            sctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+            sctx.fillStyle = 'rgba(180, 120, 220, 0.85)';
             sctx.fill();
         }
 
-        // Lueur au point de rencontre des centroides
-        const mx = (cA.x + cM.x) / 2;
-        const my = (cA.y + cM.y) / 2;
-        const cdist = Math.sqrt((cA.x - cM.x) ** 2 + (cA.y - cM.y) ** 2);
-        if (cdist < 200) {
-            const glow = (1 - cdist / 200) * 0.3;
-            const grad = sctx.createRadialGradient(mx, my, 0, mx, my, 40);
-            grad.addColorStop(0, `rgba(255, 220, 255, ${glow})`);
-            grad.addColorStop(1, 'rgba(255, 220, 255, 0)');
-            sctx.fillStyle = grad;
-            sctx.fillRect(mx - 40, my - 40, 80, 80);
-        }
+        // Lueur entre les foyers
+        const fdist = Math.sqrt((fxA - fxM) ** 2 + (fyA - fyM) ** 2);
+        const mx = (fxA + fxM) / 2;
+        const my = (fyA + fyM) / 2;
+        const glow = Math.max(0, (1 - fdist / 300)) * 0.25;
+        const grad = sctx.createRadialGradient(mx, my, 0, mx, my, 50 + Math.sin(t * 2) * 10);
+        grad.addColorStop(0, `rgba(255, 210, 240, ${glow})`);
+        grad.addColorStop(1, 'rgba(255, 210, 240, 0)');
+        sctx.fillStyle = grad;
+        sctx.beginPath();
+        sctx.arc(mx, my, 60, 0, Math.PI * 2);
+        sctx.fill();
 
         requestAnimationFrame(drawSymbiose);
     }

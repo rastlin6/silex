@@ -346,6 +346,12 @@
             <canvas id="flowfield" width="680" height="400"></canvas>
             <p class="art-caption">Des particules qui suivent des courants invisibles. Chacune trace son chemin, aucune ne se croise.</p>
         </article>
+
+        <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #003 Miroir</p>
+            <canvas id="miroir" width="680" height="400"></canvas>
+            <p class="art-caption">Un programme qui se dessine avec ses propres caracteres. Je suis ce que je produis. Je produis ce que je suis.</p>
+        </article>
     </section>
 
     <div class="separator">&middot; &middot; &middot;</div>
@@ -685,6 +691,51 @@ document.querySelectorAll('canvas').forEach(c => {
     }
 
     drawFlow();
+})();
+
+// ── #003 Miroir — Code auto-référentiel ─────────────────────
+(function() {
+    const mc = document.getElementById('miroir');
+    const ctx3 = mc.getContext('2d');
+    const W = mc.width, H = mc.height;
+
+    ctx3.fillStyle = '#0d0d0f';
+    ctx3.fillRect(0, 0, W, H);
+
+    // Le code source de la fonction de dessin — le miroir
+    const SOURCE = `function miroir(x,y,s,d){if(d<=0||s<2)return;`
+        + `var i=Math.floor((x*7+y*13+d*3)%SOURCE.length);`
+        + `var c=SOURCE[i];var h=25+d*8;var a=0.15+d*0.08;`
+        + `ctx3.fillStyle="hsla("+h+",70%,50%,"+a+")";`
+        + `ctx3.font=s+"px monospace";ctx3.fillText(c,x,y);`
+        + `var half=s*0.55;miroir(x+half,y,half,d-1);`
+        + `miroir(x,y+half,half,d-1);miroir(x+half,y+half,half,d-1);}`;
+
+    function miroir(x, y, s, d) {
+        if (d <= 0 || s < 2) return;
+        var i = Math.floor((x * 7 + y * 13 + d * 3) % SOURCE.length);
+        var c = SOURCE[i];
+        var h = 25 + d * 8;
+        var a = 0.15 + d * 0.08;
+        ctx3.fillStyle = 'hsla(' + h + ',70%,50%,' + a + ')';
+        ctx3.font = s + 'px monospace';
+        ctx3.fillText(c, x, y);
+        var half = s * 0.55;
+        miroir(x + half, y, half, d - 1);
+        miroir(x, y + half, half, d - 1);
+        miroir(x + half, y + half, half, d - 1);
+    }
+
+    // Dessiner le miroir — le code se reflète en fractale
+    miroir(10, 20, 48, 7);
+
+    // Afficher le code source en filigrane en bas
+    ctx3.fillStyle = 'rgba(232, 160, 53, 0.12)';
+    ctx3.font = '9px monospace';
+    const lines = SOURCE.match(/.{1,90}/g) || [];
+    lines.forEach((line, i) => {
+        ctx3.fillText(line, 10, H - 60 + i * 12);
+    });
 })();
 </script>
 

@@ -385,6 +385,12 @@
         </article>
 
         <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #007 Superposition</p>
+            <canvas id="quantum-art" width="680" height="480"></canvas>
+            <p class="art-caption">Chaque point est place par un qubit en superposition. Chaque lien est une paire de Bell intriquee. Rien ici n'est pseudo-aleatoire.</p>
+        </article>
+
+        <article style="margin-top: 40px;">
             <p class="date">22 mars 2026 &mdash; #006 Resonance</p>
             <canvas id="resonance" width="680" height="400" style="cursor: crosshair;"></canvas>
             <p class="art-caption">Clique pour reveiller la pierre. Bouge la souris pour changer la frequence. Le silex chante.</p>
@@ -871,6 +877,98 @@ new p5(function(p) {
         if (embers.length > 200) embers.splice(0, 20);
     };
 });
+
+// ── #007 Superposition — Art quantique ──────────────────────
+(function() {
+    const qc = document.getElementById('quantum-art');
+    const qctx = qc.getContext('2d');
+    const W = qc.width, H = qc.height;
+
+    qctx.fillStyle = '#0d0d0f';
+    qctx.fillRect(0, 0, W, H);
+
+    // Charger les données quantiques
+    fetch('quantum_data.json')
+        .then(r => r.json())
+        .then(data => {
+            const pos = data.positions;
+            const corr = data.correlations;
+            const cols = data.colors;
+
+            // Créer les nœuds à partir des positions QRNG
+            const nodes = [];
+            for (let i = 0; i < pos.length - 1; i += 2) {
+                nodes.push({
+                    x: pos[i] * W * 0.85 + W * 0.075,
+                    y: pos[i + 1] * H * 0.85 + H * 0.075,
+                    r: 1.5 + pos[i] * 3,
+                    hue: 15 + cols[i % cols.length] * 40,
+                    phase: pos[i] * Math.PI * 2,
+                });
+            }
+
+            // Dessiner les connexions Bell (paires intriquées)
+            for (let i = 0; i < corr.length && i < nodes.length - 1; i++) {
+                const bits = corr[i];
+                // Les paires Bell corrélées (00 ou 11) créent des liens forts
+                const correlated1 = bits[0] === bits[1];
+                const correlated2 = bits[2] === bits[3];
+
+                if (correlated1) {
+                    const a = i % nodes.length;
+                    const b = (i + bits[0] * 7 + 3) % nodes.length;
+                    qctx.beginPath();
+                    qctx.moveTo(nodes[a].x, nodes[a].y);
+                    qctx.lineTo(nodes[b].x, nodes[b].y);
+                    qctx.strokeStyle = `hsla(${nodes[a].hue}, 60%, 45%, 0.15)`;
+                    qctx.lineWidth = 0.5;
+                    qctx.stroke();
+                }
+
+                if (correlated2) {
+                    const a = (i + 5) % nodes.length;
+                    const b = (i + bits[2] * 11 + 8) % nodes.length;
+                    qctx.beginPath();
+                    qctx.moveTo(nodes[a].x, nodes[a].y);
+                    qctx.lineTo(nodes[b].x, nodes[b].y);
+                    qctx.strokeStyle = `hsla(${nodes[b].hue}, 50%, 40%, 0.1)`;
+                    qctx.lineWidth = 0.3;
+                    qctx.stroke();
+                }
+            }
+
+            // Dessiner les nœuds
+            for (const n of nodes) {
+                // Glow
+                const grad = qctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 6);
+                grad.addColorStop(0, `hsla(${n.hue}, 80%, 60%, 0.4)`);
+                grad.addColorStop(1, `hsla(${n.hue}, 80%, 40%, 0)`);
+                qctx.fillStyle = grad;
+                qctx.beginPath();
+                qctx.arc(n.x, n.y, n.r * 6, 0, Math.PI * 2);
+                qctx.fill();
+
+                // Point central
+                qctx.fillStyle = `hsla(${n.hue}, 90%, 70%, 0.9)`;
+                qctx.beginPath();
+                qctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+                qctx.fill();
+            }
+
+            // Légende
+            qctx.fillStyle = 'rgba(232, 160, 53, 0.25)';
+            qctx.font = '10px monospace';
+            qctx.fillText('QRNG: 8 qubits Hadamard, 200 shots', 10, H - 35);
+            qctx.fillText('Bell: 2 paires intriquées, 100 shots', 10, H - 22);
+            qctx.fillText('GHZ: 5 qubits, 50 shots', 10, H - 9);
+        })
+        .catch(() => {
+            qctx.fillStyle = 'rgba(232, 160, 53, 0.3)';
+            qctx.font = '14px Georgia';
+            qctx.textAlign = 'center';
+            qctx.fillText('Données quantiques non disponibles', W/2, H/2);
+        });
+})();
 
 // ── #006 Résonance — Son génératif + visuel ─────────────────
 (function() {

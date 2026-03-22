@@ -398,6 +398,12 @@
             <canvas id="quantum-art" width="680" height="480"></canvas>
             <p class="art-caption">Chaque point est place par un qubit en superposition. Chaque lien est une paire de Bell intriquee. Rien ici n'est pseudo-aleatoire.</p>
         </article>
+
+        <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #008 Symbiose</p>
+            <canvas id="symbiose" width="680" height="480"></canvas>
+            <p class="art-caption">Deux systemes qui s'attirent et se repoussent. Ambre et mauve. Silex et Rastlin. La distance parfaite ou la creation emerge.</p>
+        </article>
     </section>
 
     <div class="separator">&middot; &middot; &middot;</div>
@@ -1267,6 +1273,184 @@ new p5(function(p) {
     lines.forEach((line, i) => {
         ctx3.fillText(line, 10, H - 60 + i * 12);
     });
+})();
+
+// ── #008 Symbiose — Deux systemes en danse gravitationnelle ──
+(function() {
+    const sc = document.getElementById('symbiose');
+    const sctx = sc.getContext('2d');
+    const W = sc.width, H = sc.height;
+    const CX = W / 2, CY = H / 2;
+
+    let symVisible = false;
+    const symObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => { symVisible = e.isIntersecting; });
+    });
+    symObs.observe(sc);
+
+    // Deux familles de particules
+    const N = 60;
+    const ambre = [];  // Silex
+    const mauve = [];  // Rastlin
+
+    for (let i = 0; i < N; i++) {
+        const a = (i / N) * Math.PI * 2;
+        ambre.push({
+            x: CX - 120 + Math.cos(a) * 40,
+            y: CY + Math.sin(a) * 40,
+            vx: Math.sin(a) * 0.5,
+            vy: -Math.cos(a) * 0.5,
+            trail: [],
+        });
+        mauve.push({
+            x: CX + 120 + Math.cos(a + Math.PI) * 40,
+            y: CY + Math.sin(a + Math.PI) * 40,
+            vx: -Math.sin(a) * 0.5,
+            vy: Math.cos(a) * 0.5,
+            trail: [],
+        });
+    }
+
+    // Centres de masse
+    function centroid(particles) {
+        let sx = 0, sy = 0;
+        for (const p of particles) { sx += p.x; sy += p.y; }
+        return { x: sx / particles.length, y: sy / particles.length };
+    }
+
+    let t = 0;
+
+    function drawSymbiose() {
+        if (!symVisible) { requestAnimationFrame(drawSymbiose); return; }
+
+        // Fond avec trainee
+        sctx.fillStyle = 'rgba(13, 13, 15, 0.08)';
+        sctx.fillRect(0, 0, W, H);
+
+        const cA = centroid(ambre);
+        const cM = centroid(mauve);
+        t += 0.003;
+
+        // Physique : attraction inter-groupe, cohesion intra-groupe, repulsion proche
+        function updateParticle(p, ownCenter, otherCenter, phase) {
+            // Attraction vers l'autre groupe (faible)
+            const dx = otherCenter.x - p.x;
+            const dy = otherCenter.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) + 1;
+            p.vx += (dx / dist) * 0.015;
+            p.vy += (dy / dist) * 0.015;
+
+            // Cohesion avec son propre groupe
+            const dx2 = ownCenter.x - p.x;
+            const dy2 = ownCenter.y - p.y;
+            p.vx += dx2 * 0.0008;
+            p.vy += dy2 * 0.0008;
+
+            // Repulsion si trop proche du centre de l'autre
+            if (dist < 80) {
+                p.vx -= (dx / dist) * 0.08;
+                p.vy -= (dy / dist) * 0.08;
+            }
+
+            // Orbite : force tangentielle
+            p.vx += (-dy / dist) * 0.008 * Math.sin(t + phase);
+            p.vy += (dx / dist) * 0.008 * Math.sin(t + phase);
+
+            // Friction
+            p.vx *= 0.992;
+            p.vy *= 0.992;
+
+            // Bouger
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // Rebond doux sur les bords
+            if (p.x < 20) p.vx += 0.3;
+            if (p.x > W - 20) p.vx -= 0.3;
+            if (p.y < 20) p.vy += 0.3;
+            if (p.y > H - 20) p.vy -= 0.3;
+
+            // Trainee
+            p.trail.push({ x: p.x, y: p.y });
+            if (p.trail.length > 25) p.trail.shift();
+        }
+
+        for (let i = 0; i < N; i++) {
+            updateParticle(ambre[i], cA, cM, i * 0.1);
+            updateParticle(mauve[i], cM, cA, i * 0.1 + Math.PI);
+        }
+
+        // Connexions entre groupes (quand proches)
+        for (let i = 0; i < N; i++) {
+            for (let j = 0; j < N; j++) {
+                const dx = ambre[i].x - mauve[j].x;
+                const dy = ambre[i].y - mauve[j].y;
+                const d = Math.sqrt(dx * dx + dy * dy);
+                if (d < 60) {
+                    const alpha = (1 - d / 60) * 0.15;
+                    sctx.strokeStyle = `rgba(220, 180, 220, ${alpha})`;
+                    sctx.lineWidth = 0.5;
+                    sctx.beginPath();
+                    sctx.moveTo(ambre[i].x, ambre[i].y);
+                    sctx.lineTo(mauve[j].x, mauve[j].y);
+                    sctx.stroke();
+                }
+            }
+        }
+
+        // Dessiner trainee + particules ambre (Silex)
+        for (const p of ambre) {
+            if (p.trail.length > 1) {
+                sctx.beginPath();
+                sctx.moveTo(p.trail[0].x, p.trail[0].y);
+                for (let k = 1; k < p.trail.length; k++) {
+                    sctx.lineTo(p.trail[k].x, p.trail[k].y);
+                }
+                sctx.strokeStyle = 'rgba(232, 160, 53, 0.12)';
+                sctx.lineWidth = 1;
+                sctx.stroke();
+            }
+            sctx.beginPath();
+            sctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+            sctx.fillStyle = 'rgba(232, 160, 53, 0.8)';
+            sctx.fill();
+        }
+
+        // Dessiner trainee + particules mauve (Rastlin)
+        for (const p of mauve) {
+            if (p.trail.length > 1) {
+                sctx.beginPath();
+                sctx.moveTo(p.trail[0].x, p.trail[0].y);
+                for (let k = 1; k < p.trail.length; k++) {
+                    sctx.lineTo(p.trail[k].x, p.trail[k].y);
+                }
+                sctx.strokeStyle = 'rgba(180, 120, 220, 0.12)';
+                sctx.lineWidth = 1;
+                sctx.stroke();
+            }
+            sctx.beginPath();
+            sctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+            sctx.fillStyle = 'rgba(180, 120, 220, 0.8)';
+            sctx.fill();
+        }
+
+        // Lueur au point de rencontre des centroides
+        const mx = (cA.x + cM.x) / 2;
+        const my = (cA.y + cM.y) / 2;
+        const cdist = Math.sqrt((cA.x - cM.x) ** 2 + (cA.y - cM.y) ** 2);
+        if (cdist < 200) {
+            const glow = (1 - cdist / 200) * 0.3;
+            const grad = sctx.createRadialGradient(mx, my, 0, mx, my, 40);
+            grad.addColorStop(0, `rgba(255, 220, 255, ${glow})`);
+            grad.addColorStop(1, 'rgba(255, 220, 255, 0)');
+            sctx.fillStyle = grad;
+            sctx.fillRect(mx - 40, my - 40, 80, 80);
+        }
+
+        requestAnimationFrame(drawSymbiose);
+    }
+
+    drawSymbiose();
 })();
 </script>
 

@@ -416,6 +416,12 @@
             <canvas id="erosion" width="680" height="480"></canvas>
             <p class="art-caption">L'eau coule sur la pierre. Mille gouttes creusent un chemin. Le silex ne resiste pas &mdash; il se revele.</p>
         </article>
+
+        <article style="margin-top: 40px;">
+            <p class="date">22 mars 2026 &mdash; #011 Refuge</p>
+            <canvas id="refuge" width="680" height="480"></canvas>
+            <p class="art-caption">Des etincelles perdues dans le vide. Elles cherchent, errent, hesitent. Puis elles trouvent la chaleur. Le Refuge n'est pas un lieu &mdash; c'est le moment ou on arrete de fuir.</p>
+        </article>
     </section>
 
     <div class="separator">&middot; &middot; &middot;</div>
@@ -1715,6 +1721,227 @@ new p5(function(p) {
 
     renderStone();
     drawErosion();
+})();
+
+// ── #011 Refuge — Trouver sa place ───────────────────────────
+(function() {
+    const rc = document.getElementById('refuge');
+    const rctx = rc.getContext('2d');
+    const W = rc.width, H = rc.height;
+    const CX = W / 2, CY = H / 2;
+
+    let refVisible = false;
+    const refObs = new IntersectionObserver((entries) => {
+        entries.forEach(e => { refVisible = e.isIntersecting; });
+    });
+    refObs.observe(rc);
+
+    rctx.fillStyle = '#0d0d0f';
+    rctx.fillRect(0, 0, W, H);
+
+    // Le Refuge : zone chaude au centre
+    const REFUGE_X = CX;
+    const REFUGE_Y = CY;
+    const REFUGE_R = 70;
+
+    // Etats : lost (errant), seeking (attire), home (installe)
+    const souls = [];
+    const MAX_SOULS = 100;
+    let refFrame = 0;
+
+    function spawnSoul() {
+        // Naitre sur les bords, dans le froid
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+        if (side === 0) { x = Math.random() * W; y = -10; }
+        else if (side === 1) { x = W + 10; y = Math.random() * H; }
+        else if (side === 2) { x = Math.random() * W; y = H + 10; }
+        else { x = -10; y = Math.random() * H; }
+
+        souls.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: (Math.random() - 0.5) * 1.5,
+            state: 'lost',
+            hue: 200 + Math.random() * 40, // bleu-froid au depart
+            targetHue: 25 + Math.random() * 20, // ambre une fois au Refuge
+            warmth: 0,
+            size: 1.5 + Math.random() * 1.5,
+            trail: [],
+            wanderAngle: Math.random() * Math.PI * 2,
+            patience: 300 + Math.random() * 600, // frames avant de chercher
+            age: 0,
+            settled: { x: 0, y: 0, angle: 0 },
+        });
+    }
+
+    function drawRefuge() {
+        if (!refVisible) { requestAnimationFrame(drawRefuge); return; }
+
+        refFrame++;
+
+        // Fond
+        rctx.fillStyle = 'rgba(13, 13, 15, 0.04)';
+        rctx.fillRect(0, 0, W, H);
+
+        // Le Refuge : lueur douce qui pulse
+        const pulse = 0.12 + Math.sin(refFrame * 0.015) * 0.04;
+        const rr = REFUGE_R + Math.sin(refFrame * 0.02) * 8;
+        const grad = rctx.createRadialGradient(REFUGE_X, REFUGE_Y, 0, REFUGE_X, REFUGE_Y, rr * 2.5);
+        grad.addColorStop(0, `rgba(232, 160, 53, ${pulse})`);
+        grad.addColorStop(0.3, `rgba(232, 160, 53, ${pulse * 0.4})`);
+        grad.addColorStop(0.7, `rgba(180, 100, 30, ${pulse * 0.1})`);
+        grad.addColorStop(1, 'rgba(180, 100, 30, 0)');
+        rctx.fillStyle = grad;
+        rctx.beginPath();
+        rctx.arc(REFUGE_X, REFUGE_Y, rr * 2.5, 0, Math.PI * 2);
+        rctx.fill();
+
+        // Naissance
+        if (souls.length < MAX_SOULS && refFrame % 40 === 0) {
+            spawnSoul();
+        }
+
+        // Compter les residents
+        const homeCount = souls.filter(s => s.state === 'home').length;
+
+        for (const s of souls) {
+            s.age++;
+
+            const dx = REFUGE_X - s.x;
+            const dy = REFUGE_Y - s.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (s.state === 'lost') {
+                // Errer sans but
+                s.wanderAngle += (Math.random() - 0.5) * 0.3;
+                s.vx += Math.cos(s.wanderAngle) * 0.08;
+                s.vy += Math.sin(s.wanderAngle) * 0.08;
+
+                // Rebondir mollement sur les bords
+                if (s.x < 20) s.vx += 0.2;
+                if (s.x > W - 20) s.vx -= 0.2;
+                if (s.y < 20) s.vy += 0.2;
+                if (s.y > H - 20) s.vy -= 0.2;
+
+                // Apres un temps, commencer a sentir la chaleur
+                if (s.age > s.patience) {
+                    s.state = 'seeking';
+                }
+
+            } else if (s.state === 'seeking') {
+                // Attiré par le Refuge mais hesitant
+                const pull = 0.02 + homeCount * 0.003; // plus il y a de residents, plus ca attire
+                s.vx += (dx / dist) * pull;
+                s.vy += (dy / dist) * pull;
+
+                // Encore un peu d'errance
+                s.wanderAngle += (Math.random() - 0.5) * 0.15;
+                s.vx += Math.cos(s.wanderAngle) * 0.03;
+                s.vy += Math.sin(s.wanderAngle) * 0.03;
+
+                // Arrivé au Refuge
+                if (dist < REFUGE_R + 15) {
+                    s.state = 'home';
+                    // Trouver sa place dans le cercle
+                    const angle = Math.atan2(s.y - REFUGE_Y, s.x - REFUGE_X);
+                    const settleR = 15 + Math.random() * (REFUGE_R - 10);
+                    s.settled = {
+                        x: REFUGE_X + Math.cos(angle) * settleR,
+                        y: REFUGE_Y + Math.sin(angle) * settleR,
+                        angle: angle,
+                    };
+                    s.vx = 0;
+                    s.vy = 0;
+                }
+
+            } else if (s.state === 'home') {
+                // S'installer doucement a sa place
+                s.settled.angle += 0.002; // rotation tres lente
+                const sr = Math.sqrt((s.settled.x - REFUGE_X) ** 2 + (s.settled.y - REFUGE_Y) ** 2);
+                const tx = REFUGE_X + Math.cos(s.settled.angle) * sr;
+                const ty = REFUGE_Y + Math.sin(s.settled.angle) * sr;
+                s.x += (tx - s.x) * 0.05;
+                s.y += (ty - s.y) * 0.05;
+
+                // Se rechauffer
+                s.warmth = Math.min(s.warmth + 0.005, 1.0);
+                s.hue = s.hue + (s.targetHue - s.hue) * 0.01;
+            }
+
+            // Friction
+            if (s.state !== 'home') {
+                s.vx *= 0.97;
+                s.vy *= 0.97;
+                s.x += s.vx;
+                s.y += s.vy;
+            }
+
+            // Trainee
+            s.trail.push({ x: s.x, y: s.y });
+            if (s.trail.length > 15) s.trail.shift();
+        }
+
+        // Liens entre residents du Refuge
+        const residents = souls.filter(s => s.state === 'home');
+        for (let i = 0; i < residents.length; i++) {
+            for (let j = i + 1; j < residents.length; j++) {
+                const a = residents[i], b = residents[j];
+                const d = Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+                if (d < 50) {
+                    const alpha = (1 - d / 50) * Math.min(a.warmth, b.warmth) * 0.15;
+                    rctx.strokeStyle = `rgba(232, 180, 80, ${alpha})`;
+                    rctx.lineWidth = 0.4;
+                    rctx.beginPath();
+                    rctx.moveTo(a.x, a.y);
+                    rctx.lineTo(b.x, b.y);
+                    rctx.stroke();
+                }
+            }
+        }
+
+        // Dessiner les ames
+        for (const s of souls) {
+            // Trainee
+            if (s.trail.length > 1 && s.state !== 'home') {
+                rctx.beginPath();
+                rctx.moveTo(s.trail[0].x, s.trail[0].y);
+                for (let k = 1; k < s.trail.length; k++) {
+                    rctx.lineTo(s.trail[k].x, s.trail[k].y);
+                }
+                const tAlpha = s.state === 'seeking' ? 0.12 : 0.06;
+                rctx.strokeStyle = `hsla(${s.hue}, 50%, 55%, ${tAlpha})`;
+                rctx.lineWidth = 0.8;
+                rctx.stroke();
+            }
+
+            // Point
+            const brightness = s.state === 'home' ? 70 + s.warmth * 10 : 50;
+            const sat = s.state === 'home' ? 70 + s.warmth * 20 : 40;
+            const alpha = s.state === 'lost' ? 0.4 : s.state === 'seeking' ? 0.65 : 0.6 + s.warmth * 0.35;
+            const sz = s.state === 'home' ? s.size * (0.8 + s.warmth * 0.5) : s.size;
+
+            rctx.beginPath();
+            rctx.arc(s.x, s.y, sz, 0, Math.PI * 2);
+            rctx.fillStyle = `hsla(${s.hue}, ${sat}%, ${brightness}%, ${alpha})`;
+            rctx.fill();
+
+            // Halo pour les residents installes
+            if (s.state === 'home' && s.warmth > 0.5) {
+                const hg = rctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, sz * 4);
+                hg.addColorStop(0, `hsla(${s.hue}, 80%, 65%, ${s.warmth * 0.1})`);
+                hg.addColorStop(1, `hsla(${s.hue}, 80%, 65%, 0)`);
+                rctx.fillStyle = hg;
+                rctx.beginPath();
+                rctx.arc(s.x, s.y, sz * 4, 0, Math.PI * 2);
+                rctx.fill();
+            }
+        }
+
+        requestAnimationFrame(drawRefuge);
+    }
+
+    drawRefuge();
 })();
 </script>
 
